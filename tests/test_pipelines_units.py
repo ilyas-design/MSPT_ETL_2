@@ -66,6 +66,40 @@ class TestPipelinesUnits(unittest.TestCase):
         finally:
             m.pd.to_numeric = orig
 
+        # cover ColumnStats.to_dict branch when top_values is falsy
+        from Pipelines.metrics import ColumnStats
+        cs_no_top = ColumnStats(
+            column_name="x",
+            data_type="int",
+            non_null_count=1,
+            null_count=0,
+            null_percentage=0.0,
+            unique_count=1,
+        )
+        d2 = cs_no_top.to_dict()
+        self.assertNotIn("top_values", d2)
+
+        # cover categorical stats exception branch by monkeypatching Series.value_counts
+        import pandas as _pd
+        s = _pd.Series(["a", "b", "a"])
+        orig_vc = _pd.Series.value_counts
+        try:
+            def vc_raiser(self, *a, **k):
+                raise RuntimeError("boom")
+            _pd.Series.value_counts = vc_raiser
+            _ = calc.calculate_column_stats(_pd.DataFrame({"c": s}), "c")
+        finally:
+            _pd.Series.value_counts = orig_vc
+
+        # cover TableStats.summary branch when top_values is falsy
+        from Pipelines.metrics import TableStats
+        ts2 = TableStats(table_name="t2", row_count=1, column_count=1, memory_usage_mb=0.0, columns_stats=[cs_no_top])
+        self.assertIn("STATISTIQUES", ts2.summary())
+
+        # cover calculate_column_stats numeric_series empty branch
+        import numpy as np
+        _ = calc.calculate_column_stats(pd.DataFrame({"n": [np.nan, np.nan]}), "n")
+
     def test_transformer_missing_values_and_types_and_business_transforms(self):
         tr = DataTransformer()
         df = pd.DataFrame({"x": [1, None, 3], "y": ["  A ", None, "nan"]})

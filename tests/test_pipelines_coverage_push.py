@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 from Pipelines.pipeline import ETLPipeline, run_etl
-from Pipelines.transformers import DataTransformer
+from Pipelines.transformers import DataTransformer, apply_all_transformations
 from Pipelines.validators import DataValidator, print_validation_summary
 from Pipelines.metrics import print_metrics_summary, calculate_all_metrics
 from Pipelines.metrics import ColumnStats, TableStats
@@ -27,6 +27,12 @@ class TestCoveragePush(unittest.TestCase):
         tr.handle_missing_values(df, strategy={"a": "median"})
         tr.handle_missing_values(df, strategy={"b": "mode"})
         tr.handle_missing_values(df, strategy={"b": "fill"}, fill_values={"b": "y"})
+        # strategy None branch + continue branches (missing column / no missing)
+        tr.handle_missing_values(pd.DataFrame({"z": [1, 2]}), strategy=None, fill_values=None)
+        tr.handle_missing_values(pd.DataFrame({"z": [1, 2]}), strategy={"missing": "mean"})
+        tr.handle_missing_values(pd.DataFrame({"z": [1, 2]}), strategy={"z": "mean"})  # missing_count == 0 -> continue
+        # unknown strategy with missing_count > 0 (covers fallthrough)
+        tr.handle_missing_values(pd.DataFrame({"z": [1, None]}), strategy={"z": "unknown"})
 
         # normalize explicit columns + missing col skip
         tr.normalize_string_columns(df, columns=["b", "missing"])
@@ -38,17 +44,57 @@ class TestCoveragePush(unittest.TestCase):
         tr.convert_types(pd.DataFrame({"d": ["2024-01-01"]}), {"d": "datetime"})
         # invalid dtype falls back (should not crash)
         tr.convert_types(pd.DataFrame({"x": ["a"]}), {"x": "nope"})
+        # convert_types except branch
+        import Pipelines.transformers as tmod
+        orig_to_numeric = tmod.pd.to_numeric
+        try:
+            def num_raiser(*a, **k):
+                raise RuntimeError("boom")
+            tmod.pd.to_numeric = num_raiser
+            tr.convert_types(pd.DataFrame({"i": ["1"]}), {"i": "int"})
+        finally:
+            tmod.pd.to_numeric = orig_to_numeric
+
+        # convert_types missing column continue
+        tr.convert_types(pd.DataFrame({"a": [1]}), {"missing": "int"})
 
         # clip_numeric_values / standardize_categorical_values
         rules = {"a": {"min": 0, "max": 2}, "b": {"allowed_values": ["x", None]}}
         tr.clip_numeric_values(pd.DataFrame({"a": [-1, 1, 3]}), rules)
         tr.standardize_categorical_values(pd.DataFrame({"b": ["x", "bad"]}), rules)
+        # clip_numeric_values except branch
+        import Pipelines.transformers as tmod2
+        orig_to_numeric2 = tmod2.pd.to_numeric
+        try:
+            def num_raiser2(*a, **k):
+                raise RuntimeError("boom")
+            tmod2.pd.to_numeric = num_raiser2
+            tr.clip_numeric_values(pd.DataFrame({"a": ["x"]}), {"a": {"min": 0, "max": 1}})
+        finally:
+            tmod2.pd.to_numeric = orig_to_numeric2
 
         # cover TransformationResult.summary
         tr.remove_duplicates(pd.DataFrame({"x": [1, 1]})).summary()
 
         # cover handle_missing_values mode branch when mode is empty
         tr.handle_missing_values(pd.DataFrame({"m": [None, None]}), strategy={"m": "mode"})
+        # cover recalculate_bmi skip branch (missing columns)
+        tr.recalculate_bmi(pd.DataFrame({"age": [1]}))
+        # cover categorize_bmi/categorize_age skip branches
+        tr.categorize_bmi(pd.DataFrame({"age": [1]}))
+        tr.categorize_age(pd.DataFrame({"bmi_calculated": [1]}))
+        # recalculate_bmi else branch (bmi_calculated not in df.columns)
+        tr.recalculate_bmi(pd.DataFrame({"weight_kg": [80], "height_cm": [180]}))
+        # categorize_bmi NaN branch
+        tr.categorize_bmi(pd.DataFrame({"bmi_calculated": [float("nan")]}))
+        # categorize_age NaN branch
+        tr.categorize_age(pd.DataFrame({"age": [float("nan")]}))
+
+        # calculate_calories_per_hour skip branch
+        tr.calculate_calories_per_hour(pd.DataFrame({"x": [1]}))
+
+        # apply_all_transformations transformer None branch
+        apply_all_transformations(pd.DataFrame({"a": [1]}), "unknown_table", transformer=None)
 
     def test_validator_branches_and_summaries(self):
         v = DataValidator()
@@ -59,6 +105,8 @@ class TestCoveragePush(unittest.TestCase):
 
         # str type check branch
         self.assertTrue(v._check_type("x", "str"))
+        # unknown type branch
+        self.assertTrue(v._check_type("x", "unknown"))
 
         # validate_dataframe with missing required cols to create errors
         bad_patient = pd.DataFrame({"gender": ["BAD"]})
@@ -84,6 +132,84 @@ class TestCoveragePush(unittest.TestCase):
 
         # validate_value null but nullable=True (returns empty)
         self.assertEqual(v.validate_value(None, {"nullable": True, "type": "int"}, "x", 0), [])
+
+        # validate_value min/max except branches (no type, non-numeric)
+        _ = v.validate_value("abc", {"nullable": True, "min": 1}, "x", 0)
+        _ = v.validate_value("abc", {"nullable": True, "max": 1}, "x", 0)
+        # validate_value max error path
+        rmax = v.validate_value(10, {"nullable": True, "max": 1}, "x", 0)
+        self.assertTrue(any(not x.is_valid for x in rmax))
+
+        # cover pattern success branch (no error appended)
+        okp = v.validate_value("123", {"nullable": True, "type": "str", "pattern": r"^[0-9]+$"}, "p", 0)
+        self.assertEqual(okp, [])
+
+        # coherence branches for gym_session: bpm warning + calories/hour warning
+        gym = pd.DataFrame(
+            {
+                "gym_max_bpm": [100],
+                "gym_avg_bpm": [120],  # invalid ordering
+                "gym_resting_bpm": [80],
+                "gym_calories_burned": [10],
+                "gym_session_duration_hours": [10],  # low cal/h
+            }
+        )
+        warnings = v.validate_coherence(gym, "gym_session")
+        self.assertGreaterEqual(len(warnings), 1)
+
+        # cover coherence branches/excepts
+        # patient coherence exception branch (non-numeric)
+        _ = v.validate_coherence(pd.DataFrame({"weight_kg": ["x"], "height_cm": [180], "bmi_calculated": [20]}), "patient")
+        # gym_session bpm all() false branch (one missing)
+        _ = v.validate_coherence(pd.DataFrame({"gym_max_bpm": [100], "gym_avg_bpm": [90], "gym_resting_bpm": [None]}), "gym_session")
+        # gym_session bpm exception branch
+        _ = v.validate_coherence(pd.DataFrame({"gym_max_bpm": ["x"], "gym_avg_bpm": [90], "gym_resting_bpm": [80]}), "gym_session")
+        # calories coherence if-guard false (duration zero)
+        _ = v.validate_coherence(pd.DataFrame({"gym_calories_burned": [100], "gym_session_duration_hours": [0]}), "gym_session")
+        # calories coherence exception branch
+        _ = v.validate_coherence(pd.DataFrame({"gym_calories_burned": ["x"], "gym_session_duration_hours": [1]}), "gym_session")
+
+        # cover validate_dataframe WARNING branch by monkeypatching validate_value
+        from Pipelines.validators import ValidationResult, ValidationSeverity
+        orig_validate_value = v.validate_value
+        try:
+            def fake_validate_value(value, rule, field_name, row_index=None):
+                return [
+                    ValidationResult(
+                        is_valid=True,
+                        field=field_name,
+                        value=value,
+                        rule="fake",
+                        message="warn",
+                        severity=ValidationSeverity.WARNING,
+                        row_index=row_index,
+                    )
+                ]
+            v.validate_value = fake_validate_value
+            repw = v.validate_dataframe(pd.DataFrame({"age": [20]}), "patient")
+            self.assertGreaterEqual(repw.warning_count, 1)
+        finally:
+            v.validate_value = orig_validate_value
+
+        # cover validate_dataframe branch where severity is neither ERROR nor WARNING
+        orig_validate_value = v.validate_value
+        try:
+            def fake_info(value, rule, field_name, row_index=None):
+                return [
+                    ValidationResult(
+                        is_valid=True,
+                        field=field_name,
+                        value=value,
+                        rule="fake",
+                        message="info",
+                        severity=ValidationSeverity.INFO,
+                        row_index=row_index,
+                    )
+                ]
+            v.validate_value = fake_info
+            _ = v.validate_dataframe(pd.DataFrame({"age": [20]}), "patient")
+        finally:
+            v.validate_value = orig_validate_value
 
     def test_pipeline_error_and_optional_sources_and_report(self):
         repo = Path(__file__).resolve().parents[1]
@@ -179,6 +305,16 @@ class TestCoveragePush(unittest.TestCase):
         }
         p_ids.transform()
         self.assertIn("patient", p_ids.transformed_data)
+
+        # cover food_log date branch false (no Date column)
+        p_food = ETLPipeline(data_dir=str(tmp), db_path=str(tmp / "dfood.sqlite"), report_dir=str(tmp / "rfood"))
+        p_food.cleaned_data = {"food_log": pd.DataFrame({"User_ID": [1], "Food_Item": ["x"]})}
+        p_food.transform()
+
+        # cover exercise_id insert branch (no id fields)
+        p_ex = ETLPipeline(data_dir=str(tmp), db_path=str(tmp / "dex.sqlite"), report_dir=str(tmp / "rex"))
+        p_ex.cleaned_data = {"exercise": pd.DataFrame({"name": ["x"], "equipment": ["bw"]})}
+        p_ex.transform()
 
         # cover run() generate_report branch
         p_run = ETLPipeline(data_dir=str(tmp), db_path=str(tmp / "drun.sqlite"), report_dir=str(tmp / "rrun"))
