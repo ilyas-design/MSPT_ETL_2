@@ -1,0 +1,48 @@
+# ---- OS / Editor ----
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# ---- Testing / Coverage ----
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- Jupyter ----
+.ipynb_checkpoints/
+
+# ---- Node (root-level only; frontend has its own .gitignore) ----
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ---- Local databases / artifacts ----
+*.sqlite3
+*.db
+

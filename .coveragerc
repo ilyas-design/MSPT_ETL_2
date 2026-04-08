@@ -1,0 +1,17 @@
+[run]
+branch = True
+source =
+    Pipelines
+    api
+omit =
+    */__init__.py
+    */tests/*
+    */migrations/*
+    backend/config/*
+    backend/manage.py
+
+[report]
+show_missing = True
+skip_covered = False
+fail_under = 100
+
