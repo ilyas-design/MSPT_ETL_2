@@ -24,7 +24,10 @@ function Patients() {
       setPatients(response.data.results || response.data);
       setLoading(false);
     } catch (err) {
-      setError('Erreur au chargement des patients');
+      setError(err?.code === 'ERR_NETWORK'
+        ? 'Backend indisponible. Lancez Django sur http://localhost:8000.'
+        : 'Erreur au chargement des patients'
+      );
       setLoading(false);
     }
   };
@@ -47,7 +50,7 @@ function Patients() {
 
   return (
     <div className="page">
-      <h2>👥 Patients</h2>
+      <h2>Patients</h2>
       
       <div className="patients-container">
         <div className="patients-list">

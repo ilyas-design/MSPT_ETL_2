@@ -23,7 +23,10 @@ function Dashboard() {
             setEngagement(eng.data);
             setLoading(false);
         } catch (err) {
-            setError("Erreur lors du chargement des données");
+            const hint = (err?.code === "ERR_NETWORK")
+              ? "Backend indisponible. Lancez Django sur http://localhost:8000 puis rafraîchissez."
+              : "Erreur lors du chargement des données.";
+            setError(hint);
             setLoading(false);
         }
     };
@@ -33,7 +36,7 @@ function Dashboard() {
 
     return (
         <div className="dashboard">
-            <h2>📊 Vue d'ensemble</h2>
+            <h2>Vue d'ensemble</h2>
 
             <div className="kpi-grid">
                 <StatCard
@@ -60,7 +63,7 @@ function Dashboard() {
                 />
             </div>
 
-            <h2 style={{ marginTop: "3rem" }}>📈 Engagement</h2>
+            <h2 style={{ marginTop: "3rem" }}>Engagement</h2>
 
             <div className="kpi-grid">
                 <StatCard
@@ -91,25 +94,25 @@ function Dashboard() {
                 />
             </div>
 
-            <h2 style={{ marginTop: "3rem" }}>🥗 Nutrition</h2>
+            <h2 style={{ marginTop: "3rem" }}>Nutrition</h2>
 
             <div className="kpi-grid">
                 <StatCard
-                    icon="🍽️"
+                    icon="Calories"
                     title="Calories moyennes"
                     value={kpis?.nutrition?.avg_calories?.toFixed(0) || 0}
                     unit="kcal/jour"
                     color="#4facfe"
                 />
                 <StatCard
-                    icon="⏱️"
+                    icon="Exercice"
                     title="Exercice moyen"
                     value={kpis?.activite_physique?.avg_exercise_hours?.toFixed(1) || 0}
                     unit="heures/semaine"
                     color="#4facfe"
                 />
                 <StatCard
-                    icon="🔥"
+                    icon="Gym"
                     title="Calories brûlées"
                     value={kpis?.gym?.avg_calories_burned?.toFixed(0) || 0}
                     unit="kcal/session"

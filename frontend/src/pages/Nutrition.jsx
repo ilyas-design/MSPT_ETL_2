@@ -41,7 +41,7 @@ function Nutrition() {
 
   return (
     <div className="page">
-      <h2>🥗 Nutrition & Alimentation</h2>
+      <h2>Nutrition & Alimentation</h2>
       
       <div className="charts-grid">
         <div className="chart-container">

@@ -28,7 +28,10 @@ function Analytics() {
       setSatisfaction(sat.data);
       setLoading(false);
     } catch (err) {
-      setError('Erreur au chargement');
+      setError(err?.code === 'ERR_NETWORK'
+        ? 'Backend indisponible. Lancez Django sur http://localhost:8000.'
+        : 'Erreur au chargement'
+      );
       setLoading(false);
     }
   };
@@ -49,7 +52,7 @@ function Analytics() {
 
   return (
     <div className="page">
-      <h2>📈 Analytics & Engagement</h2>
+      <h2>Analytics & Engagement</h2>
       
       <div className="stats-grid-large">
         <div className="stat-box">

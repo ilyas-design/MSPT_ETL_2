@@ -53,7 +53,7 @@ function Health() {
 
   return (
     <div className="page">
-      <h2>📋 Données de Santé</h2>
+      <h2>Données de Santé</h2>
       <div className="charts-grid">
         <div className="chart-container">
           <h3>Types de maladies</h3>

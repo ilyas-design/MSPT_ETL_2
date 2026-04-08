@@ -62,7 +62,7 @@ function Activity() {
 
   return (
     <div className="page">
-      <h2>💪 Activité Physique & Gym</h2>
+      <h2>Activité Physique & Gym</h2>
       
       <div className="charts-grid">
         <div className="chart-container">
