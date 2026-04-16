@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Bar, Line } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
+import { Bar } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { apiService } from '../services/api';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 function Analytics() {
   const [engagement, setEngagement] = useState(null);
@@ -89,8 +89,8 @@ function Analytics() {
               datasets: [{
                 label: 'Taux (%)',
                 data: [
-                  conversion?.high_adherence_nutrition_rate || 0,
-                  conversion?.high_adherence_activity_rate || 0
+                  conversion?.nutrition_conversion_rate || 0,
+                  conversion?.activity_conversion_rate || 0
                 ],
                 backgroundColor: ['#48bb78', '#4facfe'],
               }]
@@ -110,14 +110,14 @@ function Analytics() {
         <div className="stat-box">
           <div className="stat-icon">✅</div>
           <h4>Adhérence nutrition</h4>
-          <p className="big-number">{conversion?.high_adherence_nutrition_rate?.toFixed(1) || 0}%</p>
+          <p className="big-number">{conversion?.nutrition_conversion_rate?.toFixed(1) || 0}%</p>
           <span className="unit">plans respectés</span>
         </div>
 
         <div className="stat-box">
           <div className="stat-icon">💯</div>
           <h4>Satisfaction</h4>
-          <p className="big-number">{satisfaction?.overall_satisfaction?.toFixed(1) || 0}%</p>
+          <p className="big-number">{satisfaction?.overall_satisfaction_score?.toFixed(1) || 0}%</p>
           <span className="unit">satisfaction client</span>
         </div>
       </div>

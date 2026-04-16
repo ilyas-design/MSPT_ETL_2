@@ -176,8 +176,8 @@ function Admin() {
         <AdminTable
           title="Santé"
           rows={health}
-          rowIdKey="id"
-          editableKeys={['cholesterol_mg_dl', 'blood_pressure_systolic', 'blood_pressure_diastolic', 'glucose_mg_dl', 'heart_rate_bpm']}
+          rowIdKey="patient"
+          editableKeys={['cholesterol', 'blood_pressure', 'disease_type', 'glucose', 'severity']}
           onSaveRow={async (id, payload) => {
             await apiService.updateHealth(id, payload);
             await fetchAll();
@@ -190,8 +190,15 @@ function Admin() {
         <AdminTable
           title="Nutrition"
           rows={nutrition}
-          rowIdKey="id"
-          editableKeys={['calories_per_day', 'protein_g', 'carbs_g', 'fat_g']}
+          rowIdKey="patient"
+          editableKeys={[
+            'daily_caloric_intake',
+            'dietary_restrictions',
+            'allergies',
+            'preferred_cuisine',
+            'diet_recommendation',
+            'adherence_to_diet_plan'
+          ]}
           onSaveRow={async (id, payload) => {
             await apiService.updateNutrition(id, payload);
             await fetchAll();
@@ -204,8 +211,8 @@ function Admin() {
         <AdminTable
           title="Activité physique"
           rows={activities}
-          rowIdKey="id"
-          editableKeys={['exercise_hours_per_week', 'daily_steps']}
+          rowIdKey="patient"
+          editableKeys={['physical_activity_level', 'weekly_exercice_hours']}
           onSaveRow={async (id, payload) => {
             await apiService.updateActivity(id, payload);
             await fetchAll();
@@ -219,7 +226,19 @@ function Admin() {
           title="Séances gym"
           rows={gym}
           rowIdKey="id"
-          editableKeys={['duration_minutes', 'calories_burned', 'workout_type', 'experience_level']}
+          editableKeys={[
+            'gym_session_duration_hours',
+            'gym_calories_burned',
+            'gym_workout_type',
+            'gym_max_bpm',
+            'gym_avg_bpm',
+            'gym_resting_bpm',
+            'gym_fat_percentage',
+            'gym_water_intake_liters',
+            'gym_workout_frequency_days_week',
+            'gym_experience_level',
+            'calories_per_hour'
+          ]}
           onSaveRow={async (id, payload) => {
             await apiService.updateGymSession(id, payload);
             await fetchAll();
